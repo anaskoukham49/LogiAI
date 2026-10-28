@@ -1,6 +1,6 @@
 # Compte rendu : TP API LogiAI
 
-**Noms :** ............................  **Groupe :** ........
+**Noms :** Anas Koukham  **Groupe :** G3
 
 ## 1. Environnement et premiers tests
 - Sortie de `python -m pytest` au départ (collez-la) :
