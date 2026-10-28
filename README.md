@@ -1,25 +1,3 @@
-<!--
-=====================================================================
- 📸 SCREENSHOT CHECKLIST  (save every image in docs/screenshots/)
-=====================================================================
- [ ] 1.  hero.png              Streamlit app with a high-risk alert
- [ ] 2.  architecture.png      Architecture diagram
- [ ] 3.  training-output.png   Terminal: python -m logiai.train
- [ ] 4.  swagger-ui.png        Full /docs page, routes collapsed
- [ ] 5.  predict-200.png       Swagger: valid request + 200 response
- [ ] 6.  predict-422.png       Swagger: invalid request + 422 response
- [ ] 7.  predict-503.png       Swagger: 503 when models/ is missing
- [ ] 8.  streamlit-alert.png   Streamlit: high-risk delivery + alert
- [ ] 9.  streamlit-ok.png      Streamlit: easy delivery + green message
- [ ] 10. streamlit-api-down.png Streamlit: "API injoignable" error
- [ ] 11. pytest.png            Terminal: python -m pytest (all passed)
- [ ] 12. pull-request.png       GitHub pull request page
-
- TIP: if you skip a screenshot, delete its <img ... /> line, otherwise
- GitHub shows a broken-image icon. Delete this whole comment at the end.
-=====================================================================
--->
-
 <div align="center">
 
 # 🚚 LogiAI
@@ -33,15 +11,6 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-client-FF4B4B?logo=streamlit&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-pytest-0A9EDC?logo=pytest&logoColor=white)
 
-<!--
-  📸 SCREENSHOT 1 — hero.png
-  WHAT : The Streamlit app after clicking "Évaluer" with worst-case settings
-         (long distance, heavy rain, traffic 10, camion). The probability and
-         the "Alerte : livraison à risque" message must be visible.
-  HOW  : streamlit run streamlit_app.py (API must be running). Crop tightly.
-         You can simply copy streamlit-alert.png and rename it.
-  SAVE : docs/screenshots/hero.png
--->
 <img src="docs/screenshots/hero.png" alt="LogiAI hero screenshot" width="800"/>
 
 </div>
@@ -88,15 +57,6 @@ After  :  [ Streamlit ] --\
 
 ## 🏗 Architecture
 
-<!--
-  📸 SCREENSHOT 2 — architecture.png
-  WHAT : A diagram showing: clients (browser, curl, Streamlit, mobile) →
-         port 8000 → uvicorn → FastAPI app → model loaded in memory
-         (model.joblib read from disk once at startup).
-  HOW  : Use the diagram from your course PDF (crop it), or redraw it with
-         draw.io / Excalidraw / Canva and export as PNG.
-  SAVE : docs/screenshots/architecture.png
--->
 <img src="docs/screenshots/architecture.png" alt="LogiAI architecture" width="800"/>
 
 | Layer | Role |
@@ -116,7 +76,7 @@ After  :  [ Streamlit ] --\
 - ⚡ **Model loaded once** at startup through FastAPI's `lifespan`
 - 🚦 **Meaningful HTTP status codes**: `200`, `422` (invalid input), `503` (model not loaded)
 - ❤️ **Health endpoint** reporting whether the model is loaded
-- 🧪 **Automated test suite** with `pytest` (`TestClient`)
+- 🧪 **Automated test suite** with `pytest` (`TestClient`), 15 tests
 - 🖥 **Streamlit client** that contains *no model*, only HTTP calls to the API
 
 ---
@@ -201,14 +161,8 @@ python -m logiai.dataset      # writes data/livraisons.csv
 python -m logiai.train        # writes models/model.joblib
 ```
 
-<!--
-  📸 SCREENSHOT 3 — training-output.png
-  WHAT : Your terminal right after `python -m logiai.train`, showing the
-         baseline accuracy, the model accuracy and the recall.
-  HOW  : Run the command, then capture only the terminal text (no desktop).
-         Use a readable font size.
-  SAVE : docs/screenshots/training-output.png
--->
+Training reports a baseline accuracy of **0.726** (always answering "on time"), a model accuracy of **0.774** and a recall of **0.464**: the model detects about 46 real delays out of 100, which the baseline never does.
+
 <img src="docs/screenshots/training-output.png" alt="Training output" width="700"/>
 
 ---
@@ -223,15 +177,6 @@ python -m uvicorn logiai.api.main:app --reload
 
 The API is now available at **http://localhost:8000** and the interactive documentation at **http://localhost:8000/docs**.
 
-<!--
-  📸 SCREENSHOT 4 — swagger-ui.png
-  WHAT : The whole Swagger page at http://localhost:8000/docs with the
-         routes visible (GET /health, POST /v1/predict) and the Schemas
-         section at the bottom (Livraison, PredictionOut).
-  HOW  : Open /docs, collapse each route by clicking its arrow so everything
-         fits on one screen. Zoom the browser to ~90%.
-  SAVE : docs/screenshots/swagger-ui.png
--->
 <img src="docs/screenshots/swagger-ui.png" alt="Swagger UI" width="800"/>
 
 ### Quick test with `curl`
@@ -266,15 +211,15 @@ Predicts the risk of delay for a single delivery.
 
 **Request body (the API "contract")**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `distance_km` | float | Trip distance in km |
-| `poids_kg` | float | Transported weight in kg |
-| `heure_depart` | int | Departure hour, from 0 to 23 |
-| `pluie_mm` | float | Forecast rainfall along the route (mm) |
-| `trafic_index` | float | Traffic index: 0 = free-flowing, 10 = saturated |
-| `nb_arrets` | int | Number of delivery stops |
-| `type_vehicule` | string | `"moto"`, `"fourgon"` or `"camion"` |
+| Field | Type | Allowed range | Description |
+|-------|------|---------------|-------------|
+| `distance_km` | float | 1 to 1000 | Trip distance in km |
+| `poids_kg` | float | 0.1 to 30000 | Transported weight in kg |
+| `heure_depart` | int | 0 to 23 | Departure hour |
+| `pluie_mm` | float | 0 to 200 | Forecast rainfall along the route (mm) |
+| `trafic_index` | float | 0 to 10 | Traffic index: 0 = free-flowing, 10 = saturated |
+| `nb_arrets` | int | 0 to 50 | Number of delivery stops |
+| `type_vehicule` | string | `"moto"`, `"fourgon"`, `"camion"` | Vehicle type |
 
 **Example request**
 
@@ -310,17 +255,6 @@ Predicts the risk of delay for a single delivery.
 }
 ```
 
-> The `probabilite_retard` value above is illustrative; replace it with a real value from your API if you like.
-
-<!--
-  📸 SCREENSHOT 5 — predict-200.png
-  WHAT : Swagger "Try it out" with a REALISTIC valid request (e.g. 120 km,
-         450 kg, 17h, 8 mm, traffic 7.5, 4 stops, camion) and the
-         "Server response" showing code 200 + the JSON body.
-  HOW  : /docs → POST /v1/predict → Try it out → edit values → Execute →
-         capture the curl / request URL / Server response area.
-  SAVE : docs/screenshots/predict-200.png
--->
 <img src="docs/screenshots/predict-200.png" alt="Successful prediction" width="800"/>
 
 ### Status codes
@@ -333,26 +267,8 @@ Predicts the risk of delay for a single delivery.
 | `500` | Server error | Bug in the code |
 | `503` | Service unavailable | Model not loaded |
 
-<!--
-  📸 SCREENSHOT 6 — predict-422.png
-  WHAT : Swagger "Server response" showing code 422 and the "detail" block
-         that names the faulty field (e.g. pluie_mm too large).
-  HOW  : POST /v1/predict → Try it out → set "pluie_mm": 500 (or
-         "distance_km": -5) → Execute → capture the response part.
-  SAVE : docs/screenshots/predict-422.png
--->
 <img src="docs/screenshots/predict-422.png" alt="Validation error 422" width="800"/>
 
-<!--
-  📸 SCREENSHOT 7 — predict-503.png
-  WHAT : Swagger "Server response" showing code 503 and the error message
-         saying the model is missing and what to do.
-  HOW  : Stop the server, delete the models/ folder, restart uvicorn, call
-         /v1/predict and capture the response. Afterwards run
-         `python -m logiai.train` to restore the model.
-         (Optional bonus: also capture /health with model_loaded: false.)
-  SAVE : docs/screenshots/predict-503.png
--->
 <img src="docs/screenshots/predict-503.png" alt="Service unavailable 503" width="800"/>
 
 ---
@@ -371,34 +287,12 @@ python -m uvicorn logiai.api.main:app --reload
 streamlit run streamlit_app.py
 ```
 
-<!--
-  📸 SCREENSHOT 8 — streamlit-alert.png
-  WHAT : Streamlit with worst-case settings (long distance, heavy rain,
-         traffic 10, camion, hour 17), showing the high probability metric
-         and the yellow "Alerte : livraison à risque." banner.
-  HOW  : Set the sliders, click "Évaluer", capture the whole app.
-  SAVE : docs/screenshots/streamlit-alert.png
--->
 <img src="docs/screenshots/streamlit-alert.png" alt="Streamlit high risk alert" width="700"/>
 
-<!--
-  📸 SCREENSHOT 9 — streamlit-ok.png
-  WHAT : Streamlit with an easy delivery showing a very low probability
-         (about 2%) and the green "Livraison probablement à l'heure."
-  HOW  : Set moto, 5 km, 3 kg, rain 0, traffic 1, 0 stops, hour 11 →
-         click "Évaluer" → capture the whole app.
-  SAVE : docs/screenshots/streamlit-ok.png
--->
 <img src="docs/screenshots/streamlit-ok.png" alt="Streamlit low risk" width="700"/>
 
-<!--
-  📸 SCREENSHOT 10 — streamlit-api-down.png
-  WHAT : Streamlit showing the red error "API injoignable : lancez uvicorn
-         dans un autre terminal."
-  HOW  : Press Ctrl+C in the uvicorn terminal, then click "Évaluer" in
-         Streamlit and capture the error message.
-  SAVE : docs/screenshots/streamlit-api-down.png
--->
+If the API is not running, the interface shows a clear error instead of crashing:
+
 <img src="docs/screenshots/streamlit-api-down.png" alt="Streamlit API unreachable" width="700"/>
 
 ---
@@ -409,16 +303,8 @@ streamlit run streamlit_app.py
 python -m pytest
 ```
 
-The test suite uses `TestClient(app)` inside a `with` block, so the application's startup (and therefore the model loading) runs exactly as on a real server.
+The test suite uses `TestClient(app)` inside a `with` block, so the application's startup (and therefore the model loading) runs exactly as on a real server. It contains 15 tests covering the health route, the response shape, the validation bounds (`422`), the missing-model case (`503`), and two additional tests: an out-of-range departure hour (`24`) is rejected, and the `alerte` flag is always consistent with the threshold.
 
-<!--
-  📸 SCREENSHOT 11 — pytest.png
-  WHAT : Terminal showing the pytest session with all tests passing
-         (green "passed" summary line at the bottom, e.g. 15 passed
-         including your 2 personal tests).
-  HOW  : Run `python -m pytest` and capture the terminal output.
-  SAVE : docs/screenshots/pytest.png
--->
 <img src="docs/screenshots/pytest.png" alt="pytest results" width="700"/>
 
 ---
@@ -430,6 +316,8 @@ The test suite uses `TestClient(app)` inside a `with` block, so the application'
 **Why load the model at startup?** Loading from disk on every request would be slow and wasteful. The model is read once in `lifespan` and reused from memory.
 
 **Why `503` and not `500` when the model is missing?** A missing model is not a bug in the code but a temporary unavailability of the service, so `503 Service Unavailable` with a message explaining what to do is the correct signal for clients.
+
+**Why start the API even without the model?** The server still starts and `/health` reports `model_loaded: false`, so a supervisor can tell "model missing" apart from "server crashed". Prediction requests get a clear `503`.
 
 **Physical bounds, not data bounds.** Field limits reflect what a real trip can look like, not the min/max of `livraisons.csv`, otherwise a slightly longer real delivery would be wrongly rejected.
 
@@ -458,13 +346,6 @@ git pull        # always pull before pushing
 git push -u origin tp-api
 ```
 
-<!--
-  📸 SCREENSHOT 12 — pull-request.png
-  WHAT : The GitHub pull request page (from tp-api) showing the title,
-         the commits / files changed and your partner's review if any.
-  HOW  : On GitHub → Pull requests → open yours → capture the top of the page.
-  SAVE : docs/screenshots/pull-request.png
--->
 <img src="docs/screenshots/pull-request.png" alt="Pull request" width="800"/>
 
 ---
