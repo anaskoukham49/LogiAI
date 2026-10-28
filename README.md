@@ -336,7 +336,7 @@ The test suite uses `TestClient(app)` inside a `with` block, so the application'
 
 ## 🌿 Git Workflow
 
-The project is developed on the **`tp-api`** branch and merged through a **pull request** reviewed by the other team member.
+The project is developed on the **`tp-api`** branch and submitted through a **pull request**.
 
 ```bash
 git switch -c tp-api
@@ -355,7 +355,6 @@ git push -u origin tp-api
 | Name | GitHub |
 |------|--------|
 | **Anas Koukham** | [@anaskoukham49](https://github.com/anaskoukham49) |
-| *Partner name* | [@partner-username](https://github.com/partner-username) |
 
 ---
 

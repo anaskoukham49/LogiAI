@@ -103,4 +103,4 @@ def predict(livraison: Livraison):
 
 ## 7. Lien de la pull request
 
-À COMPLÉTER : collez ici le lien de votre pull request GitHub (par exemple `https://github.com/anaskoukham49/LogiAI/pull/1`).
+https://github.com/anaskoukham49/LogiAI/pull/1
