@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>LogiAI - Test Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f4f7f6; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { margin-top: 20px; background: #007BFF; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #result { margin-top: 20px; padding: 15px; border-radius: 4px; background: #e9ecef; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Prédiction de Retard - LogiAI</h2>
+        
+        <label for="apiKey">Clé API (X-API-Key) :</label>
+        <input type="password" id="apiKey" value="ma-cle-user-123" placeholder="Entrez votre clé API">
+
+        <label for="distance">Distance (km) :</label>
+        <input type="number" id="distance" value="120">
+
+        <label for="poids">Poids (kg) :</label>
+        <input type="number" id="poids" value="450">
+
+        <label for="heure">Heure de départ :</label>
+        <input type="number" id="heure" value="17">
+
+        <label for="pluie">Pluie (mm) :</label>
+        <input type="number" id="pluie" value="8">
+
+        <label for="trafic">Indice trafic :</label>
+        <input type="number" step="0.1" id="trafic" value="7.5">
+
+        <label for="arrets">Nombre d'arrêts :</label>
+        <input type="number" id="arrets" value="4">
+
+        <label for="vehicule">Type de véhicule :</label>
+        <select id="vehicule">
+            <option value="camion">camion</option>
+            <option value="voiture">voiture</option>
+            <option value="moto">moto</option>
+        </select>
+
+        <button id="btnPredire" onclick="appelerApi()">Prédire le risque</button>
+
+        <div id="result">Résultat affiché ici...</div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8000/v1/predict";
+
+        async function appelerApi() {
+            const btn = document.getElementById("btnPredire");
+            const resultDiv = document.getElementById("result");
+            const cle = document.getElementById("apiKey").value;
+
+            const livraison = {
+                distance_km: parseFloat(document.getElementById("distance").value),
+                poids_kg: parseFloat(document.getElementById("poids").value),
+                heure_depart: parseInt(document.getElementById("heure").value),
+                pluie_mm: parseFloat(document.getElementById("pluie").value),
+                trafic_index: parseFloat(document.getElementById("trafic").value),
+                nb_arrets: parseInt(document.getElementById("arrets").value),
+                type_vehicule: document.getElementById("vehicule").value
+            };
+
+            btn.disabled = true;
+            resultDiv.textContent = "Appel en cours...";
+
+            try {
+                const reponse = await fetch(API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-API-Key": cle
+                    },
+                    body: JSON.stringify(livraison)
+                });
+
+                const corps = await reponse.json();
+
+                if (reponse.ok) {
+                    resultDiv.style.background = "#d4edda";
+                    resultDiv.textContent = `Succès (${reponse.status}) :\nProbabilité de retard : ${corps.probabilite_retard}\nAlerte : ${corps.alerte ? "OUI" : "NON"}`;
+                } else {
+                    resultDiv.style.background = "#f8d7da";
+                    resultDiv.textContent = `Erreur (${reponse.status}) :\n${JSON.stringify(corps, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.style.background = "#f8d7da";
+                resultDiv.textContent = "API injoignable ou erreur réseau / CORS.";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

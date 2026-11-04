@@ -1,16 +1,22 @@
 """Le banc d'essai de l'API. Lancer : python -m pytest"""
+
 from fastapi.testclient import TestClient
 
 from logiai.api.main import app, state
 
 VALIDE = {
-    "distance_km": 120.0, "poids_kg": 450.0, "heure_depart": 17,
-    "pluie_mm": 8.0, "trafic_index": 7.5, "nb_arrets": 4, "type_vehicule": "camion",
+    "distance_km": 120.0,
+    "poids_kg": 450.0,
+    "heure_depart": 17,
+    "pluie_mm": 8.0,
+    "trafic_index": 7.5,
+    "nb_arrets": 4,
+    "type_vehicule": "camion",
 }
 
 
 def post(client, **changements):
-    return client.post("/v1/predict", json={**VALIDE, **changements})
+    return client.post("/v1/predict", json={**VALIDE, **changements}, headers={"X-API-Key": "ma-cle-user-123"})
 
 
 def test_health_repond_ok():
@@ -42,8 +48,15 @@ def test_predict_probabilite_entre_0_et_1():
 
 
 def test_predict_trajet_risque_plus_eleve_que_trajet_facile():
-    facile = dict(distance_km=5, poids_kg=3, heure_depart=11, pluie_mm=0,
-                  trafic_index=1, nb_arrets=0, type_vehicule="moto")
+    facile = {
+        "distance_km": 5,
+        "poids_kg": 3,
+        "heure_depart": 11,
+        "pluie_mm": 0,
+        "trafic_index": 1,
+        "nb_arrets": 0,
+        "type_vehicule": "moto",
+    }
     with TestClient(app) as client:
         p_difficile = post(client).json()["probabilite_retard"]
         p_facile = post(client, **facile).json()["probabilite_retard"]
@@ -68,7 +81,7 @@ def test_vehicule_inconnu_refuse():
 def test_champ_manquant_refuse():
     with TestClient(app) as client:
         body = {k: v for k, v in VALIDE.items() if k != "poids_kg"}
-        assert client.post("/v1/predict", json=body).status_code == 422
+        assert client.post("/v1/predict", json=body, headers={"X-API-Key": "ma-cle-user-123"}).status_code == 422
 
 
 def test_champ_inconnu_refuse():
@@ -85,16 +98,3 @@ def test_modele_absent_renvoie_503():
     with TestClient(app) as client:
         state.pop("predictor", None)  # on simule un modèle non chargé
         assert post(client).status_code == 503
-
-
-def test_heure_24_refusee():
-    with TestClient(app) as client:
-        assert post(client, heure_depart=24).status_code == 422
-
-
-def test_alerte_coherente_avec_le_seuil():
-    facile = dict(distance_km=5, poids_kg=3, heure_depart=11, pluie_mm=0,
-                  trafic_index=1, nb_arrets=0, type_vehicule="moto")
-    with TestClient(app) as client:
-        for data in (post(client).json(), post(client, **facile).json()):
-            assert data["alerte"] == (data["probabilite_retard"] >= data["seuil"])

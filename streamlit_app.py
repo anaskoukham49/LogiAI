@@ -17,8 +17,12 @@ with droite:
 
 if st.button("Évaluer"):
     livraison = {
-        "distance_km": distance, "poids_kg": poids, "heure_depart": heure,
-        "pluie_mm": pluie, "trafic_index": trafic, "nb_arrets": arrets,
+        "distance_km": distance,
+        "poids_kg": poids,
+        "heure_depart": heure,
+        "pluie_mm": pluie,
+        "trafic_index": trafic,
+        "nb_arrets": arrets,
         "type_vehicule": vehicule,
     }
     try:
