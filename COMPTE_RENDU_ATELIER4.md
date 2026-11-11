@@ -1,171 +1,270 @@
-# Compte rendu : tester, sécuriser et appeler l'API LogiAI
 
-**Noms :** Anas Koukham  **Groupe :** ✏️ ........
+# COMPTE RENDU TECHNIQUE
+## Conteneurisation et déploiement de l'application LogiAI avec Docker
 
-> Légende : 📸 = capture d'écran à insérer (dossier `docs/img/`) · ✏️ = valeur à vérifier / compléter avec votre résultat réel.
-> Captures retenues : uniquement la page web `http://localhost:5500/` (succès, erreur 422, erreur 401).
-
----
-
-## 1. Casser son API (activité 1)
-
-| Cas | Requête (corps ou URL) | Prévu | Obtenu |
-|---|---|---|---|
-| champ manquant | `POST /v1/predict` avec `SANS_POIDS` (VALID sans `poids_kg`) | 422 | 422 (`Field required` sur `poids_kg`) |
-| valeur absurde | `POST /v1/predict` avec `{**VALID, "poids_kg": 99999}` | 422 | 422 ✏️ |
-| texte au lieu d'un nombre | `POST /v1/predict` avec `{**VALID, "distance_km": "beaucoup"}` | 422 | 422 (`Input should be a valid number`) |
-| champ en trop | `POST /v1/predict` avec `{**VALID, "couleur": "rouge"}` | 422 | ✏️ 200 par défaut (Pydantic ignore les champs inconnus) ; 422 si `extra="forbid"` est ajouté dans le schéma |
-| mauvaise route | `POST /v1/predictt` (faute de frappe) | 404 | 404 (`Not Found`) |
-
-- **Une requête acceptée alors qu'elle devait être refusée ? Laquelle ?**
-  ✏️ Le cas « champ en trop » : par défaut, Pydantic ignore silencieusement les champs inconnus, donc l'API répond 200 alors que la requête est mal formée. Correction : ajouter `model_config = ConfigDict(extra="forbid")` dans le schéma, ce qui donne bien 422 ; le test reste dans `tests/test_casser.py`.
-  *(Si vous avez constaté autre chose, remplacez cette réponse par votre cas réel.)*
+**Étudiant :** Anas Koukham  
+**Projet :** LogiAI  
+**Sujet :** Déploiement avec Docker, Docker Compose et Nginx  
+**Date :** Novembre 2026
 
 ---
 
-## 2. Les 2 bugs (activité 2)
+## 1. Introduction
 
-| Bug | Test qui l'a révélé | Comportement avant | Correction |
-|---|---|---|---|
-| 1 | ✏️ cas de `CAS_LIMITES` (champ, valeur, attendu 422) | ✏️ la valeur hors borne était acceptée (200 au lieu de 422) | ✏️ borne corrigée dans `schemas.py` (ex. `le=24` → `le=23`) |
-| 2 | ✏️ cas de `CAS_LIMITES` (champ, valeur, attendu 200 ou 422) | ✏️ comportement incorrect à la borne | ✏️ borne corrigée dans `schemas.py` |
+Ce compte rendu présente le travail réalisé pour conteneuriser et déployer l'application LogiAI à l'aide de Docker.
 
-> Pour chaque bug, précisez : le **champ**, la **valeur envoyée**, le **code attendu**, le **code obtenu**, puis la ligne modifiée dans `schemas.py`.
+L'objectif est de faciliter l'exécution de l'application en séparant ses principaux composants dans deux conteneurs indépendants :
 
-- **Sortie de `python -m pytest` à la fin de l'activité 2 :**
+- **Backend :** développé avec FastAPI, il assure le traitement des requêtes et les prédictions du modèle de Machine Learning.
+- **Frontend :** servi par Nginx, il permet aux utilisateurs d'accéder à l'interface web.
 
-```text
-✏️ Collez ici la sortie réelle, par exemple :
-============================= test session starts =============================
-...
-tests/test_casser.py  .....
-tests/test_limites.py ....................
-tests/test_api.py     .....
-============================== N passed in X.XXs ==============================
+La configuration permet également d'accéder à l'application depuis un autre appareil connecté au même réseau local.
+
+## 2. Architecture de l'application
+
+L'application repose sur une architecture composée de deux services :
+
+- **FastAPI :** expose les endpoints de l'API et exécute les opérations de prédiction.
+- **Nginx :** distribue les fichiers du frontend et joue le rôle de reverse proxy pour transmettre les requêtes API au backend.
+
+Les deux services communiquent à travers le réseau interne créé automatiquement par Docker Compose.
+
+### Figure 1 – Architecture générale de LogiAI
+
+<!-- INSÉRER LA CAPTURE : schéma de l'architecture -->
+
+![Architecture LogiAI](screenshots/01-architecture.png)
+
+## 3. Configuration Docker
+
+### 3.1. Conteneurisation du backend
+
+Un fichier `Dockerfile` a été créé à la racine du projet à partir de l'image Python 3.11.
+
+Il permet de :
+
+- Installer les dépendances définies dans `requirements.txt`.
+- Copier les fichiers nécessaires au fonctionnement de l'application.
+- Démarrer le serveur FastAPI avec Uvicorn.
+- Exposer le port 8000 à l'intérieur du conteneur.
+
+### Figure 2 – Dockerfile du backend
+
+<!-- INSÉRER LA CAPTURE DU DOCKERFILE PRINCIPAL -->
+
+![Dockerfile backend](screenshots/02-backend-dockerfile.png)
+
+### 3.2. Conteneurisation du frontend
+
+Le frontend utilise l'image officielle `nginx:alpine`.
+
+Le fichier `web/Dockerfile` permet de copier :
+- Le fichier HTML de l'interface.
+- La configuration Nginx personnalisée.
+
+Le serveur Nginx écoute sur le port 80 à l'intérieur du conteneur.
+
+### Figure 3 – Dockerfile du frontend
+
+<!-- INSÉRER LA CAPTURE DE web/Dockerfile -->
+
+![Dockerfile frontend](screenshots/03-frontend-dockerfile.png)
+
+### 3.3. Configuration Nginx et reverse proxy
+
+Nginx assure deux fonctions principales :
+
+1. Servir l'interface web.
+2. Transférer les requêtes commençant par `/api/` vers le backend FastAPI.
+
+Le backend est accessible depuis Nginx grâce au nom du service Docker `api`.
+
+Cette configuration permet au frontend d'utiliser une URL relative, comme `/api/v1/predict`, sans avoir à définir directement l'adresse interne du backend.
+
+### Figure 4 – Configuration Nginx
+
+<!-- INSÉRER LA CAPTURE DE nginx/default.conf -->
+
+![Configuration Nginx](screenshots/04-nginx-config.png)
+
+### 3.4. Orchestration avec Docker Compose
+
+Le fichier `docker-compose.yml` permet de gérer les deux services dans un environnement commun.
+
+Configuration des ports :
+
+| Service | Port du conteneur | Port de la machine |
+|---|---:|---:|
+| Backend FastAPI | 8000 | 8001 |
+| Frontend Nginx | 80 | 8080 |
+
+Le fichier comprend également :
+
+- Un contrôle de santé (*health check*) pour le backend.
+- Une dépendance entre le frontend et le backend.
+- La configuration des variables d'environnement.
+- Le montage des dossiers `models` et `data` dans le conteneur backend.
+
+Les clés API et autres informations sensibles sont fournies à travers les variables d'environnement et ne doivent pas être publiées dans le dépôt Git.
+
+### Figure 5 – Configuration Docker Compose
+
+<!-- INSÉRER LA CAPTURE DE docker-compose.yml -->
+
+![Docker Compose](screenshots/05-docker-compose.png)
+
+## 4. Construction et démarrage des conteneurs
+
+La commande suivante permet de construire les images et de démarrer les services en arrière-plan :
+
+```powershell
+docker compose up --build -d
+```
+
+Pour vérifier l'état des conteneurs :
+
+```powershell
+docker compose ps
+```
+
+Après le démarrage, les résultats obtenus étaient :
+
+- `logiai-api` : état `healthy`.
+- `logiai-web` : état `running`.
+
+Le backend était accessible sur le port 8001 et le frontend sur le port 8080 de la machine hôte.
+
+### Figure 6 – État des conteneurs Docker
+
+<!-- INSÉRER LA CAPTURE DE docker compose ps -->
+
+![État des conteneurs](screenshots/06-docker-compose-ps.png)
+
+## 5. Tests fonctionnels
+
+### 5.1. Accès à l'interface web
+
+Après le démarrage des conteneurs, l'application a été ouverte depuis le navigateur à l'adresse :
+
+`http://localhost:8080`
+
+Cette vérification permet de confirmer que le frontend est correctement servi par Nginx.
+
+### Figure 7 – Interface LogiAI en local
+
+<!-- INSÉRER UNE CAPTURE DE L'APPLICATION DANS LE NAVIGATEUR -->
+
+![Interface LogiAI](screenshots/07-application-local.png)
+
+### 5.2. Vérification du backend
+
+Le backend expose une route `/health` permettant de vérifier son état de fonctionnement.
+
+La réponse obtenue confirmait :
+
+- Le fonctionnement du service.
+- Le chargement du modèle de Machine Learning.
+- La configuration de l'authentification.
+
+### Figure 8 – Vérification de l'API
+
+<!-- INSÉRER LA CAPTURE DE LA RÉPONSE /health -->
+
+![API Health Check](screenshots/08-api-health.png)
+
+## 6. Accès depuis un autre appareil du réseau local
+
+Afin de permettre l'accès depuis un autre appareil, l'adresse IP locale de la machine hébergeant les conteneurs a été utilisée à la place de `localhost`.
+
+Lors du test, l'adresse utilisée était :
+
+`http://172.20.10.2:8080`
+
+Une règle entrante du pare-feu Windows a été créée afin d'autoriser les connexions TCP au port 8080 depuis le sous-réseau local.
+
+L'application a ensuite été ouverte avec succès depuis un deuxième appareil connecté au même réseau Wi-Fi.
+
+### Figure 9 – Accès depuis un autre appareil
+
+<!-- INSÉRER UNE CAPTURE DE L'APPLICATION SUR LE DEUXIÈME APPAREIL -->
+
+![Accès réseau local](screenshots/09-acces-autre-appareil.png)
+
+**Remarque :** l'adresse IP utilisée est privée et peut changer selon le réseau auquel la machine est connectée. Cette méthode permet un accès sur le réseau local, mais ne rend pas automatiquement l'application accessible depuis Internet.
+
+## 7. Gestion du code source avec Git et GitHub
+
+Les modifications relatives au déploiement ont été regroupées dans une branche Git dédiée :
+
+`feature/docker-deployment`
+
+Un commit a été créé avec le message :
+
+`Add Docker deployment configuration sans compte rendu`
+
+La branche a ensuite été publiée sur GitHub.
+
+- **Dépôt :** https://github.com/anaskoukham49/LogiAI
+- **Branche :** https://github.com/anaskoukham49/LogiAI/tree/feature/docker-deployment
+- **Commit :** `d37d2d9`
+
+Cette organisation permet de séparer les modifications du déploiement de la branche principale.
+
+### Figure 10 – Publication de la branche sur GitHub
+
+<!-- INSÉRER UNE CAPTURE DE LA BRANCHE GITHUB -->
+
+![Branche GitHub](screenshots/10-github-branch.png)
+
+## 8. Conclusion
+
+Ce travail a permis de mettre en place un environnement de déploiement Docker pour l'application LogiAI en séparant le backend FastAPI et le frontend Nginx.
+
+Docker Compose facilite la construction, le démarrage et la gestion des deux services. La configuration Nginx assure la distribution de l'interface web ainsi que le transfert des requêtes API vers le backend.
+
+Les tests réalisés ont confirmé le bon fonctionnement des conteneurs, l'accès à l'interface web et l'accessibilité de l'application depuis un autre appareil connecté au même réseau local.
+
+Cette configuration constitue une base reproductible pour exécuter l'application dans un environnement conteneurisé.
+
+## Annexe – Commandes utilisées
+
+```powershell
+# Construire et démarrer les conteneurs
+docker compose up --build -d
+
+# Vérifier les conteneurs
+docker compose ps
+
+# Consulter les journaux
+docker compose logs
+
+# Arrêter les conteneurs
+docker compose down
+
+# Vérifier la branche Git
+git branch --show-current
+
+# Publier la branche sur GitHub
+git push -u origin feature/docker-deployment
 ```
 
 ---
 
-## 3. La clé API (sprint 1)
+## Liste des captures d'écran à ajouter
 
-- **Ma fonction `verify_api_key()`** (✏️ remplacez par votre code exact si différent) :
+Créer un dossier `screenshots` à la racine du projet et y placer les images suivantes :
 
-```python
-def verify_api_key(x_api_key: str | None = Header(default=None)) -> str:
-    """Authentifie l'appelant et renvoie son rôle ("admin" ou "user")."""
-    if x_api_key is None:
-        raise HTTPException(status_code=401, detail="Clé API absente")
-    if _egal(x_api_key, config.ADMIN_KEY):
-        return "admin"
-    if _egal(x_api_key, config.API_KEY):
-        return "user"
-    raise HTTPException(status_code=401, detail="Clé API invalide")
-
-
-def require_admin(role: str = Depends(verify_api_key)) -> str:
-    """Autorise uniquement le rôle admin ; sinon 403."""
-    if role != "admin":
-        raise HTTPException(status_code=403, detail="Droits administrateur requis")
-    return role
-```
-
-`_egal` utilise `secrets.compare_digest` (comparaison en temps constant). Si `API_KEY` ou `ADMIN_KEY` valent `None` (`.env` non chargé), toute requête est refusée : l'API échoue de façon sûre.
-
-| Requête | Code obtenu |
+| Nom du fichier | Contenu |
 |---|---|
-| `/v1/predict` sans clé | 401 |
-| `/v1/predict` fausse clé | 401 |
-| `/v1/predict` clé utilisateur | 200 |
-| `/v1/model-info` clé utilisateur | 403 |
-| `/v1/model-info` clé administrateur | 200 |
-| `/health` sans clé | 200 |
+| `01-architecture.png` | Schéma de l'architecture |
+| `02-backend-dockerfile.png` | Dockerfile backend |
+| `03-frontend-dockerfile.png` | Dockerfile frontend |
+| `04-nginx-config.png` | Configuration Nginx |
+| `05-docker-compose.png` | Configuration Docker Compose |
+| `06-docker-compose-ps.png` | État des conteneurs |
+| `07-application-local.png` | Interface dans le navigateur |
+| `08-api-health.png` | Vérification de l'API |
+| `09-acces-autre-appareil.png` | Accès depuis un autre appareil |
+| `10-github-branch.png` | Branche GitHub publiée |
 
-- **Preuve que `.env` n'est pas dans Git (sortie de `git status`) :**
-
-```text
-✏️ Collez votre sortie réelle. Exemple attendu :
-On branch tp-securite
-Changes to be committed:
-        new file:   .env.example
-        new file:   COMPTE_RENDU.md
-        modified:   logiai/api/main.py
-        new file:   logiai/api/security.py
-        ...
-(aucune ligne .env)
-```
-
----
-
-## 4. Le client web (sprint 2)
-
-- **Mon `fetch`** (fonction `appelerApi` dans `web/index.html`) :
-
-```javascript
-async function appelerApi(livraison, cle) {
-  const reponse = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-API-Key": cle },
-    body: JSON.stringify(livraison),   // l'objet devient du texte JSON
-  });
-  const corps = await reponse.json();  // la réponse, en objet
-  return { status: reponse.status, corps };
-}
-```
-
-- **Ce qui s'affiche :**
-
-| Cas | Affichage |
-|---|---|
-| livraison normale | la probabilité de retard, avec l'alerte correspondante (HTTP 200) ✏️ |
-| pluie de 500 mm | message d'erreur 422 lisible (champ `pluie_mm` hors borne) ✏️ |
-| fausse clé | message « clé API invalide » (HTTP 401) ✏️ |
-
-📸 **Livraison normale : la clé fonctionne (200)**
-
-![Livraison normale](docs/img/09-page-normale.png)
-
-📸 **Pluie de 500 mm : erreur 422**
-
-![Pluie de 500 mm](docs/img/10-page-422.png)
-
-📸 **Fausse clé : 401**
-
-![Fausse clé](docs/img/11-page-401.png)
-
-- **Expérience CORS (page servie sur le port 5501) : que disent la page et la console (F12) ? Pourquoi `curl` marche-t-il quand même ?**
-  - **Page :** elle affiche « API injoignable » : le navigateur a bloqué la réponse, la page n'a donc rien reçu.
-  - **Console (F12) :** message du type
-    `Access to fetch at 'http://localhost:8000/v1/predict' from origin 'http://localhost:5501' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.`
-    L'origine `http://localhost:5501` n'est pas dans `ALLOWED_ORIGINS` (seul le port 5500 l'est), donc la requête préliminaire `OPTIONS` n'obtient pas l'autorisation.
-  - **`curl` :** CORS est une règle appliquée **par le navigateur** pour protéger l'utilisateur. `curl` n'est pas un navigateur : il n'envoie pas de pré-requête et ne vérifie aucun en-tête `Access-Control-*`. Seule la clé API compte pour lui.
-
-- **Où voyez-vous la clé dans F12 ?**
-  Onglet **Network** → requête `predict` → **Headers** → *Request Headers* → `X-API-Key`. La clé voyage donc en clair dans l'en-tête de la requête, visible par l'utilisateur de la page (d'où l'intérêt de HTTPS en production). Si elle était écrite dans le code JavaScript, elle serait visible par **tous** ceux qui chargent la page (onglet Sources ou « afficher le code source »), sans même qu'ils aient à faire un appel, et elle finirait aussi dans Git.
-
----
-
-## 5. Questions de compréhension
-
-1. **Quelle différence entre 401, 403 et 422 ?**
-   - **401** : l'API ne sait pas *qui* appelle (clé absente ou fausse) : problème d'**authentification**.
-   - **403** : l'API sait qui appelle, mais l'action n'est **pas permise** (clé utilisateur sur `/v1/model-info`, réservée à l'admin) : problème d'**autorisation**.
-   - **422** : l'appelant est accepté, mais les **données** sont invalides (champ manquant, valeur hors bornes, mauvais type).
-   - Ordre des contrôles : route (404) → clé (401/403) → données (422) → modèle (503). Une pluie de 500 mm *sans clé* donne donc 401, pas 422.
-
-2. **Pourquoi la clé n'est-elle ni dans le code ni dans Git ?**
-   Parce que tout ce qui est commité reste dans l'historique de Git, même si le fichier est supprimé ensuite, et devient lisible par tous ceux qui ont accès au dépôt (public ou non). Une clé exposée doit être changée. On la place donc dans `.env` (ignoré par Git, lu au démarrage) ; seul `.env.example`, avec de fausses valeurs, est commité pour documenter la configuration.
-
-3. **Pourquoi comparer avec `compare_digest` plutôt qu'avec `==` ?**
-   `==` s'arrête au premier caractère différent : la durée de la réponse dépend du nombre de caractères corrects au début. Un attaquant peut mesurer ces écarts (attaque par canal temporel) et deviner la clé caractère par caractère. `secrets.compare_digest` prend un temps constant, qui ne dépend pas de la position de la première différence.
-
-4. **Pourquoi `curl` fonctionne-t-il alors que la page du port 5501 est bloquée ?**
-   CORS est une politique du **navigateur**, pas du serveur : l'API se contente d'envoyer ou non `Access-Control-Allow-Origin`, et c'est le navigateur qui bloque la lecture de la réponse. `curl` (comme Python ou Java) ne fait pas ce contrôle. CORS protège l'utilisateur contre une page malveillante, pas l'API contre les appels directs : la clé reste indispensable.
-
-5. **Pourquoi la validation faite par le navigateur ne remplace-t-elle pas celle de l'API ?**
-   Le code JavaScript s'exécute chez le client, qui peut le modifier, le contourner ou ne jamais l'utiliser : `curl`, un script ou les outils de développement envoient n'importe quelle requête directement à l'API. Seule la validation côté serveur (schémas Pydantic, clé API) est fiable. La validation côté page n'est qu'un confort d'utilisation.
-
----
-
-## 6. Lien de la pull request
-
-✏️ https://github.com/<utilisateur>/<depot>/pull/<numéro>
+**Consigne de sécurité :** ne jamais inclure le fichier `.env`, les clés API ou d'autres informations confidentielles dans les captures d'écran.
