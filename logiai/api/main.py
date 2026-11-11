@@ -1,8 +1,11 @@
-"""L'API LogiAI : python -m uvicorn logiai.api.main:app --reload"""
 
+"""LogiAI FastAPI application."""
+
+import logging
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from logiai import config
@@ -11,26 +14,92 @@ from logiai.api.security import require_admin, verify_api_key
 from logiai.config import MODEL_PATH
 from logiai.predict import Predictor
 
-state: dict = {}  # contient le "predictor" une fois le modèle chargé
 
+# --------------------------------------------------
+# Logging configuration
+# --------------------------------------------------
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+
+logger = logging.getLogger("logiai")
+
+state: dict = {}
+
+
+# --------------------------------------------------
+# Application lifecycle
+# --------------------------------------------------
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Exécuté UNE fois, au démarrage du serveur (pas à chaque requête)
+    logger.info("Starting LogiAI API")
+
     if MODEL_PATH.exists():
         state["predictor"] = Predictor(MODEL_PATH)
-    yield
-    state.clear()
+        logger.info("ML model loaded successfully")
+    else:
+        logger.error("ML model not found: %s", MODEL_PATH)
 
+    yield
+
+    state.clear()
+    logger.info("LogiAI API shutting down")
+
+
+# --------------------------------------------------
+# FastAPI application
+# --------------------------------------------------
 
 app = FastAPI(
     title="LogiAI",
     version="1.0.0",
-    description="Prédit le risque de retard d'une livraison à partir de ses caractéristiques.",
+    description="Predicts delivery delay risk using machine learning.",
     lifespan=lifespan,
 )
 
-# Configuration CORS pour autoriser le client web
+
+# --------------------------------------------------
+# HTTP request logging middleware
+# --------------------------------------------------
+
+@app.middleware("http")
+async def request_logging(request: Request, call_next):
+    start_time = time.perf_counter()
+
+    try:
+        response = await call_next(request)
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+
+        logger.info(
+            "%s %s | status=%s | duration=%.2fms",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+        )
+
+        return response
+
+    except Exception:
+        duration_ms = (time.perf_counter() - start_time) * 1000
+
+        logger.exception(
+            "%s %s | status=500 | duration=%.2fms",
+            request.method,
+            request.url.path,
+            duration_ms,
+        )
+        raise
+
+
+# --------------------------------------------------
+# CORS configuration
+# --------------------------------------------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.ALLOWED_ORIGINS,
@@ -39,6 +108,10 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-API-Key"],
 )
 
+
+# --------------------------------------------------
+# API endpoints
+# --------------------------------------------------
 
 @app.get("/health")
 def health():
@@ -51,8 +124,11 @@ def health():
 
 @app.get("/v1/model-info", dependencies=[Depends(require_admin)])
 def model_info():
-    """Route réservée aux administrateurs."""
-    return {"model_path": str(MODEL_PATH), "loaded": "predictor" in state}
+    """Administrative model information."""
+    return {
+        "model_path": str(MODEL_PATH),
+        "loaded": "predictor" in state,
+    }
 
 
 @app.post(
@@ -62,6 +138,11 @@ def model_info():
 )
 def predict(livraison: Livraison):
     predictor = state.get("predictor")
+
     if predictor is None:
-        raise HTTPException(status_code=503, detail="Modèle non chargé")
+        raise HTTPException(
+            status_code=503,
+            detail="Model not loaded",
+        )
+
     return PredictionOut(**predictor.predict(livraison.model_dump()))
