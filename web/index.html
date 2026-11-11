@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -15,10 +15,10 @@
 </head>
 <body>
     <div class="card">
-        <h2>Prédiction de Retard - LogiAI</h2>
+        <h2>PrÃ©diction de Retard - LogiAI</h2>
         
-        <label for="apiKey">Clé API (X-API-Key) :</label>
-        <input type="password" id="apiKey" value="ma-cle-user-123" placeholder="Entrez votre clé API">
+        <label for="apiKey">ClÃ© API (X-API-Key) :</label>
+        <input type="password" id="apiKey" placeholder="Entrez votre clé API">
 
         <label for="distance">Distance (km) :</label>
         <input type="number" id="distance" value="120">
@@ -26,7 +26,7 @@
         <label for="poids">Poids (kg) :</label>
         <input type="number" id="poids" value="450">
 
-        <label for="heure">Heure de départ :</label>
+        <label for="heure">Heure de dÃ©part :</label>
         <input type="number" id="heure" value="17">
 
         <label for="pluie">Pluie (mm) :</label>
@@ -35,23 +35,23 @@
         <label for="trafic">Indice trafic :</label>
         <input type="number" step="0.1" id="trafic" value="7.5">
 
-        <label for="arrets">Nombre d'arrêts :</label>
+        <label for="arrets">Nombre d'arrÃªts :</label>
         <input type="number" id="arrets" value="4">
 
-        <label for="vehicule">Type de véhicule :</label>
+        <label for="vehicule">Type de vÃ©hicule :</label>
         <select id="vehicule">
             <option value="camion">camion</option>
             <option value="voiture">voiture</option>
             <option value="moto">moto</option>
         </select>
 
-        <button id="btnPredire" onclick="appelerApi()">Prédire le risque</button>
+        <button id="btnPredire" onclick="appelerApi()">PrÃ©dire le risque</button>
 
-        <div id="result">Résultat affiché ici...</div>
+        <div id="result">RÃ©sultat affichÃ© ici...</div>
     </div>
 
     <script>
-        const API_URL = "http://localhost:8000/v1/predict";
+        const API_URL = '/api/v1/predict';
 
         async function appelerApi() {
             const btn = document.getElementById("btnPredire");
@@ -85,14 +85,14 @@
 
                 if (reponse.ok) {
                     resultDiv.style.background = "#d4edda";
-                    resultDiv.textContent = `Succès (${reponse.status}) :\nProbabilité de retard : ${corps.probabilite_retard}\nAlerte : ${corps.alerte ? "OUI" : "NON"}`;
+                    resultDiv.textContent = `SuccÃ¨s (${reponse.status}) :\nProbabilitÃ© de retard : ${corps.probabilite_retard}\nAlerte : ${corps.alerte ? "OUI" : "NON"}`;
                 } else {
                     resultDiv.style.background = "#f8d7da";
                     resultDiv.textContent = `Erreur (${reponse.status}) :\n${JSON.stringify(corps, null, 2)}`;
                 }
             } catch (error) {
                 resultDiv.style.background = "#f8d7da";
-                resultDiv.textContent = "API injoignable ou erreur réseau / CORS.";
+                resultDiv.textContent = "API injoignable ou erreur rÃ©seau / CORS.";
             } finally {
                 btn.disabled = false;
             }
